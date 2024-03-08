@@ -1,0 +1,58 @@
+﻿@page "/order"
+@using Domain.Enums;
+@inject IDialogService DialogService
+
+
+@if (Orders == null)
+{
+    <MudProgressCircular Color="Color.Default" Indeterminate="true" />
+}
+else
+{
+    <MudCard Elevation="25">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Quản lý loại hàng</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="OpenAddDialog">Thêm</MudButton>
+        </MudCardContent>
+    </MudCard>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Elevation="4">
+                <MudTextField @bind-Value="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Secondary" OnAdornmentClick="Clicked" />
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+
+    <MudTable Items="@Orders" RowsPerPage="5" Loading="@IsSearching" Hover="true" SortLabel="Sort By" Elevation="1">
+        <HeaderContent>
+            <MudTh>Mã</MudTh>
+            <MudTh>Khách</MudTh>
+            <MudTh>Tổng tiền</MudTh>
+            <MudTh>Trạng thái</MudTh>
+            <MudTh>Ngày tạo</MudTh>
+            <MudTh>Ngày cập nhật</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Id">@context.Id</MudTd>
+            <MudTd DataLabel="Name">@context.CustomerName</MudTd>
+            <MudTd DataLabel="Id">@context.Total</MudTd>
+            <MudTd DataLabel="Id">@context.OrderStatus.GetDisplayName()</MudTd>
+            <MudTd DataLabel="Name">@context.Created</MudTd>
+            <MudTd DataLabel="Id">@context.Updated</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Info" Size="Size.Large" OnClick="@(() => OpenEditDialog(context.Id))">Chỉnh sửa</MudButton>
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Check" Color="Color.Primary" IconColor="Color.Success" Size="Size.Large">Hoàn thành</MudButton>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[]{20, 50, 100}" />
+        </PagerContent>
+    </MudTable>
+}

@@ -1,0 +1,96 @@
+﻿@using Application.Brands.Queries;
+@using Application.Categories.Queries;
+@using Application.Products.Commands;
+@using Application.Products.Queries;
+@inject MediatR.IMediator mediator;
+
+<MudForm @ref="form" Model="@model" @bind-IsValid="@success" @bind-Errors="@errors">
+    <MudDialog>
+        <DialogContent>
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudPaper Class="pa-4">
+                        <MudTextField T="string" @bind-Value="model.Name" Label="Tên mặt hàng" Required="true" RequiredError="Tên mặt hàng chưa nhập!" />
+                        <MudAutocomplete T="Domain.Entities.Brand" @bind-Value="brand" Label="Thương hiệu" SearchFunc="@SearchBrand"
+                                         ToStringFunc="@(e=> e==null?null : e.Name)" ResetValueOnEmptyText="true" CoerceText="false"
+                                         AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+                        <MudAutocomplete T="Domain.Entities.Category" @bind-Value="category" Label="Loại hàng" SearchFunc="@SearchCategory"
+                                         ToStringFunc="@(e=> e==null?null : e.Name)" ResetValueOnEmptyText="true" CoerceText="false"
+                                         AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+                        <MudTextField T="int" @bind-Value="model.Price" Label="Giá" InputType="InputType.Number" Required="true" RequiredError="Giá chưa nhập!" />
+                        <MudTextField T="int" @bind-Value="model.Quantity" Label="Số lượng" InputType="InputType.Number" Required="true" RequiredError="Số lượng chưa nhập!" />
+                        <MudTextField T="string" @bind-Value="model.Note" Label="Ghi chú" Placeholder="Ghi chú nếu có" />
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="Cancel">Cancel</MudButton>
+            @if( ProductId == 0)
+            {
+                <MudButton Color="Color.Primary" OnClick="Save">Ok</MudButton>
+            } else
+            {
+                <MudButton Color="Color.Primary" OnClick="Update">Ok</MudButton>
+            }
+        </DialogActions>
+    </MudDialog>
+</MudForm>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public int ProductId { get; set; }
+
+    bool success;
+    string[] errors = { };
+    MudForm? form;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ProductId != 0)
+        {
+            model = await mediator.Send(new FindProductQuery(ProductId));
+            brand = await mediator.Send(new FindBrandQuery(model.BrandId));
+            category = await mediator.Send(new FindCategoryQuery(model.CategoryId));
+        }
+    }
+
+    Domain.Entities.Product model = new();
+    Domain.Entities.Brand brand;
+    Domain.Entities.Category category;
+
+    private async Task<IEnumerable<Domain.Entities.Brand>> SearchBrand(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return Array.Empty<Domain.Entities.Brand>();
+        }
+        return await mediator.Send(new GetBrandsFilteredNameQuery(value));
+    }
+
+    private async Task<IEnumerable<Domain.Entities.Category>> SearchCategory(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return Array.Empty<Domain.Entities.Category>();
+        }
+        return await mediator.Send(new GetCategoriesFilteredNameQuery(value));
+    }
+
+    async Task Save()
+    {
+        var result = await mediator.Send(new InsertProductCommand(brand.Id, category.Id, model.Name, model.Price, model.Quantity, model.Note));
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    async Task Update()
+    {
+        var result = await mediator.Send(new InsertProductCommand(brand.Id, category.Id, model.Name, model.Price, model.Quantity, model.Note));
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

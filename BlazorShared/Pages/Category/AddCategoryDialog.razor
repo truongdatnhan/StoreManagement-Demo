@@ -1,0 +1,34 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
+
+                    <MudPaper Class="pa-4">
+                        <MudTextField T="string" @bind-Value="Name" Label="Tên thương hiệu" Required="true" RequiredError="Tên thương hiệu!" />
+                    </MudPaper>
+                </MudForm>
+
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    private string Name { get; set; }
+
+    bool success;
+    string[] errors = { };
+    MudForm? form;
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(Name));
+
+    void Cancel() => MudDialog.Cancel();
+}

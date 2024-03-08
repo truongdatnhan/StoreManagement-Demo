@@ -1,0 +1,44 @@
+﻿@page "/brand"
+@inject IDialogService DialogService
+
+
+@if (Brands == null)
+{
+    <MudProgressCircular Color="Color.Default" Indeterminate="true" />
+}
+else
+{
+    <MudCard Elevation="25">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Quản lý thương hiệu</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Add">Thêm</MudButton>
+        </MudCardContent>
+    </MudCard>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Elevation="4">
+                <MudTextField @bind-Value="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Secondary" OnAdornmentClick="Clicked" />
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+
+    <MudTable Items="@Brands" RowsPerPage="5" Loading="@IsSearching" Hover="true" SortLabel="Sort By" Elevation="1">
+        <HeaderContent>
+            <MudTh>Mã</MudTh>
+            <MudTh>Tên</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Id">@context.Id</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[]{20, 50, 100}" />
+        </PagerContent>
+    </MudTable>
+}

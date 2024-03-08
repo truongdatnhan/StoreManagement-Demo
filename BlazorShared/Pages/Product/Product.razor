@@ -1,0 +1,55 @@
+﻿@page "/product"
+@inject IDialogService DialogService
+
+@if (Products == null)
+{
+    <MudProgressCircular Color="Color.Default" Indeterminate="true" />
+}else {
+    <MudCard Elevation="25">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Quản lý mặt hàng</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => OpenProductDialog())">Thêm</MudButton>
+        </MudCardContent>
+    </MudCard>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Elevation="4">
+                <MudTextField @bind-Value="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Secondary" OnAdornmentClick="Clicked" />
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+
+    <MudTable Items="@Products" RowsPerPage="5" Hover="true" SortLabel="Sort By" Elevation="1">
+        <HeaderContent>
+            <MudTh>Mã</MudTh>
+            <MudTh>Thương hiệu</MudTh>
+            <MudTh>Loại hàng</MudTh>
+            <MudTh>Tên</MudTh>
+            <MudTh>Giá</MudTh>
+            <MudTh>Số lượng</MudTh>
+            <MudTh>Ghi chú</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Id">@context.Id</MudTd>
+            <MudTd DataLabel="Brand">@context.BrandName</MudTd>
+            <MudTd DataLabel="Category">@context.CategoryName</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Price">@context.Price</MudTd>
+            <MudTd DataLabel="Quantity">@context.Quantity</MudTd>
+            <MudTd DataLabel="Note">@context.Note</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Info" Size="Size.Large" OnClick="@(() => OpenProductDialog(context.Id))">Chỉnh sửa</MudButton>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[]{20, 50, 100}" />
+        </PagerContent>
+    </MudTable>
+}

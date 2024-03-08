@@ -1,0 +1,64 @@
+﻿@using Application.Customers.Queries;
+@using Application.Orders.Commands;
+@inject MediatR.IMediator mediator;
+
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
+            <MudAutocomplete T="Domain.Entities.Customer" @bind-Value="customer" Label="Khách hàng" SearchFunc="@SearchName"
+                             ToStringFunc="@(e=> e==null?null : e.Name)" ResetValueOnEmptyText="true" CoerceText="false"
+                             AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+            <MudSwitch @bind-Checked="@Switch" Label="Lấy sau" Color="Color.Primary" />
+            @if (Switch)
+            {
+                <MudDatePicker Label="Ngày" Editable="true" @bind-Date="date" Placeholder="Chọn ngày" />
+                <MudTimePicker Label="Giờ" Editable="true" @bind-Time="time" />
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    public bool Switch { get; set; } = false;
+    DateTime? date = DateTime.Today;
+    TimeSpan? time = new TimeSpan();
+
+    Domain.Entities.Customer customer;
+
+    bool success;
+    string[] errors = { };
+    MudForm? form;
+
+    private async Task<IEnumerable<Domain.Entities.Customer>> SearchName(string value)
+    {
+        if (string.IsNullOrEmpty(value)){
+            return Array.Empty<Domain.Entities.Customer>();
+        }
+        return await mediator.Send(new GetCustomersFilteredNameQuery(value));
+    }
+
+    async Task Submit()
+    {
+        int result = 0;
+        if (Switch)
+        {
+            result = await mediator.Send(new InsertOrderCommand(customer.Id, date + time));
+        } else
+        {
+            result = await mediator.Send(new InsertOrderCommand(customer.Id));
+        }
+
+        MudDialog.Close(DialogResult.Ok(result));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

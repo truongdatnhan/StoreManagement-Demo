@@ -1,0 +1,104 @@
+﻿@using Application.Customers.Queries;
+@using Application.OrderDetails.Commands;
+@using Application.OrderDetails.Queries;
+@using Application.Products.Queries;
+@inject MediatR.IMediator mediator;
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" Model="@model" @bind-IsValid="@success" @bind-Errors="@errors">
+            <MudAutocomplete T="Domain.Entities.Product" @bind-Value="product" Label="Sản phẩm" SearchFunc="@SearchProductName"
+                             ToStringFunc="@(e=> ReturnNameAndUpdatePrice(e))" ResetValueOnEmptyText="true" CoerceText="false"
+                             AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+            <MudTextField @bind-Value="model.Price" Immediate="true" Label="Giá" Variant="Variant.Text" OnKeyUp="CalculateTotal" />
+            <MudTextField @bind-Value="model.Quantity" Immediate="true" Label="Số lượng" Variant="Variant.Text" OnKeyUp="CalculateTotal" />
+            <MudTextField @bind-Value="Total" Label="Tổng tiền" Variant="Variant.Text" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        
+        @if (OrderDetailId == 0)
+        {
+            <MudButton Color="Color.Primary" OnClick="Save">Ok</MudButton>
+        }
+        else
+        {
+            <MudButton Color="Color.Primary" OnClick="Update">Ok</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public int OrderDetailId { get; set; }
+
+    [Parameter]
+    public int OrderId { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if(OrderDetailId != 0)
+        {
+            model = await mediator.Send(new FindOrderDetailQuery(OrderDetailId));
+            product = await mediator.Send(new FindProductQuery(model.ProductId));
+            Total = model.Price * model.Quantity;
+        }
+
+    }
+
+    private int Total { get; set; }
+    private string? Name { get; set; }
+    DateTime? date = DateTime.Today;
+
+    Domain.Entities.Product product;
+    Domain.Entities.OrderDetail model = new Domain.Entities.OrderDetail();
+
+    bool success;
+    string[] errors = { };
+    MudForm? form;
+
+    private void CalculateTotal()
+    {
+        Total = model.Price * model.Quantity;
+    }
+
+    private async Task<IEnumerable<Domain.Entities.Product>> SearchProductName(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return Array.Empty<Domain.Entities.Product>();
+        }
+        return await mediator.Send(new GetProductsFilteredNameQuery(value));
+    }
+
+    private string? ReturnNameAndUpdatePrice(Domain.Entities.Product product)
+    {
+        if (product == null)
+        {
+            return null;
+        }
+        model.Price = product.Price;
+        Total = model.Price * model.Quantity;
+        return product.Name;
+    }
+
+    async Task Update()
+    {
+        int result = await mediator.Send(new UpdateOrderDetailCommand(OrderDetailId, product.Id, model.Price, model.Quantity));
+        MudDialog.Close(DialogResult.Ok(Name));
+    }
+
+    async Task Save()
+    {
+        int result = await mediator.Send(new InsertOrderDetailCommand(OrderId, product.Id, model.Price, model.Quantity));
+        MudDialog.Close(DialogResult.Ok(Name));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

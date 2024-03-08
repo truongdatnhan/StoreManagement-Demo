@@ -1,0 +1,49 @@
+﻿@using Application.Invoices.Commands;
+@using Application.Suppliers.Queries;
+@inject MediatR.IMediator mediator;
+
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
+            <MudAutocomplete T="Domain.Entities.Supplier" @bind-Value="supplier" Label="Nhà cung cấp" SearchFunc="@SearchName"
+                             ToStringFunc="@(e=> e==null?null : e.Name)" ResetValueOnEmptyText="true" CoerceText="false"
+                             AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    DateTime? date = DateTime.Today;
+    TimeSpan? time = new TimeSpan();
+
+    Domain.Entities.Supplier supplier;
+
+    bool success;
+    string[] errors = { };
+    MudForm? form;
+
+    private async Task<IEnumerable<Domain.Entities.Supplier>> SearchName(string value)
+    {
+        if (string.IsNullOrEmpty(value)){
+            return Array.Empty<Domain.Entities.Supplier>();
+        }
+        return await mediator.Send(new GetSuppliersFilteredNameQuery(value));
+    }
+
+    async Task Submit()
+    {
+        int result = await mediator.Send(new InsertInvoiceCommand(supplier.Id));
+        MudDialog.Close(DialogResult.Ok(result));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

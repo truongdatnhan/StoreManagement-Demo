@@ -1,0 +1,138 @@
+﻿@using Application.Customers.Queries;
+@using Application.DTOs;
+@using Application.InvoiceDetails.Queries;
+@using Application.Invoices.Commands;
+@using Application.Invoices.Queries;
+@using Application.OrderDetails.Queries;
+@using Application.Orders.Commands;
+@using Application.Orders.Queries;
+@using Application.Suppliers.Queries;
+@using Domain.Enums;
+@inject MediatR.IMediator mediator;
+@inject IDialogService DialogService
+
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" Model="@invoice" @bind-IsValid="@success" @bind-Errors="@errors">
+            <MudAutocomplete T="Domain.Entities.Supplier" @bind-Value="supplier" Label="Nhà cung cấp" SearchFunc="@SearchName"
+                             ToStringFunc="@(e=> e==null?null : e.Name)" ResetValueOnEmptyText="true" CoerceText="false"
+                             AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+            <MudSelect T="int" @bind-Value="InvoiceStatus" Label="Trạng thái" AnchorOrigin="Origin.BottomCenter">
+                @foreach (var status in Enum.GetValues(typeof(InvoiceStatus)))
+                {
+                    <MudSelectItem Value="(int)status">@(((InvoiceStatus)status).GetDisplayName())</MudSelectItem>
+                }
+            </MudSelect>
+        </MudForm>
+        <MudDivider />
+        <MudTable Items="@invoiceDetails" Hover="true" LoadingProgressColor="Color.Info">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Tên mặt hàng</MudTh>
+                <MudTh>Giá</MudTh>
+                <MudTh>Số lượng</MudTh>
+                <MudTh>Tổng</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Id">@context.Id</MudTd>
+                <MudTd DataLabel="Name">@context.ProductName</MudTd>
+                <MudTd DataLabel="Price">@context.Price</MudTd>
+                <MudTd DataLabel="Quantity">@context.Quantity</MudTd>
+                <MudTd DataLabel="Total">@(context.Price * context.Quantity)</MudTd>
+                    <MudTd>
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Rounded.Edit" Color="Color.Info" Size="Size.Large" OnClick="@(() => OpenInvoiceDetail(context.Id))">Chỉnh sửa</MudButton>
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Rounded.DeleteForever" Color="Color.Primary" IconColor="Color.Error" Size="Size.Large">Xóa</MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <FooterContent>
+                    <MudTd colspan="5">Tổng tiền: @(invoiceDetails.Sum(x => x.Price * x.Quantity))</MudTd>
+                </FooterContent>
+            </MudTable>
+
+        </DialogContent>
+        <DialogActions>
+            <MudGrid>
+                <MudItem xs="2">
+                    <MudButton OnClick="@(() => OpenInvoiceDetail( invoiceId: InvoiceId))">Thêm</MudButton>
+                </MudItem>
+                <MudItem xs="5">
+                </MudItem>
+                <MudItem xs="2">
+                    <MudButton OnClick="Cancel">Cancel</MudButton>
+                </MudItem>
+                <MudItem xs="2">
+                    <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+                </MudItem>
+            </MudGrid>
+        </DialogActions>
+    </MudDialog>
+
+
+    @code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public int InvoiceId { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        invoice = await mediator.Send(new FindInvoiceQuery(InvoiceId));
+        InvoiceStatus = (int)invoice.InvoiceStatus;
+        invoiceDetails = await mediator.Send(new GetInvoiceDetailListQuery(InvoiceId));
+        supplier = await mediator.Send(new FindSupplierQuery(invoice.SupplierId));
+    }
+
+    private List<InvoiceDetailViewModel> invoiceDetails = new();
+    private string? TextValue { get; set; }
+    private string? Name { get; set; }
+    private int InvoiceStatus { get; set; }
+
+    DateTime? date = DateTime.Today;
+    TimeSpan? time = new TimeSpan();
+
+    Domain.Entities.Supplier supplier;
+    Domain.Entities.Invoice invoice;
+
+    bool success;
+    string[] errors = { };
+    MudForm? form;
+
+    private async Task<IEnumerable<Domain.Entities.Supplier>> SearchName(string value)
+    {
+        if (string.IsNullOrEmpty(value)){
+            return Array.Empty<Domain.Entities.Supplier>();
+        }
+        return await mediator.Send(new GetSuppliersFilteredNameQuery(value));
+    }
+
+    private async Task OpenInvoiceDetail(int invoiceDetailId = 0, int invoiceId = 0)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var parameters = new DialogParameters { ["InvoiceDetailId"] = invoiceDetailId, ["InvoiceId"] = invoiceId };
+        string title;
+        if (invoiceId == 0)
+        {
+            title = "Thêm chi tiết phiếu nhập";
+        } else
+        {
+            title = "Sửa chi tiết toa hàng";
+        }
+        var dialog = DialogService.Show<InvoiceDetailDialog>(title, parameters, options); ;
+        var dialogResult = await dialog.Result;
+        if (!dialogResult.Canceled)
+        {
+            invoiceDetails = await mediator.Send(new GetInvoiceDetailListQuery(InvoiceId));
+        }
+    }
+
+    async Task Submit()
+    {
+        var result = await mediator.Send(new UpdateInvoiceCommand(invoice.Id, supplier.Id, invoiceDetails.Sum(x => x.Price * x.Quantity), (InvoiceStatus)InvoiceStatus));
+        MudDialog.Close(DialogResult.Ok(Name));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

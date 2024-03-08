@@ -1,0 +1,152 @@
+﻿@using Application.Customers.Queries;
+@using Application.DTOs;
+@using Application.OrderDetails.Queries;
+@using Application.Orders.Commands;
+@using Application.Orders.Queries;
+@using Domain.Enums;
+@inject MediatR.IMediator mediator;
+@inject IDialogService DialogService
+
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" Model="@order" @bind-IsValid="@success" @bind-Errors="@errors">
+            <MudAutocomplete T="Domain.Entities.Customer" @bind-Value="customer" Label="Khách hàng" SearchFunc="@SearchName"
+                             ToStringFunc="@(e=> e==null?null : e.Name)" ResetValueOnEmptyText="true" CoerceText="false"
+                             AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+            <MudSwitch @bind-Checked="@Switch" Label="Lấy sau" Color="Color.Primary" />
+            @if (Switch)
+            {
+                <MudDatePicker Label="Ngày" Editable="true" @bind-Date="date" Placeholder="Chọn ngày" />
+                <MudTimePicker Label="Giờ" Editable="true" @bind-Time="time" />
+            }
+            <MudSelect T="int" @bind-Value="OrderStatus" Label="Trạng thái" AnchorOrigin="Origin.BottomCenter">
+                @foreach (var status in Enum.GetValues(typeof(OrderStatus)))
+                {
+                    <MudSelectItem Value="(int)status">@(((OrderStatus)status).GetDisplayName())</MudSelectItem>
+                }
+            </MudSelect>
+            @if(OrderStatus == (int)Domain.Enums.OrderStatus.PARTIAL)
+            {
+                <MudTextField @bind-Value="TextValue" Label="Tiền thực nhận" Variant="Variant.Text"/>
+            }
+        </MudForm>
+        <MudDivider />
+        <MudTable Items="@orderDetails" Hover="true" LoadingProgressColor="Color.Info">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Tên mặt hàng</MudTh>
+                <MudTh>Giá</MudTh>
+                <MudTh>Số lượng</MudTh>
+                <MudTh>Tổng</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Id">@context.Id</MudTd>
+                <MudTd DataLabel="Name">@context.ProductName</MudTd>
+                <MudTd DataLabel="Price">@context.Price</MudTd>
+                <MudTd DataLabel="Quantity">@context.Quantity</MudTd>
+                <MudTd DataLabel="Total">@(context.Price * context.Quantity)</MudTd>
+                    <MudTd>
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Rounded.Edit" Color="Color.Info" Size="Size.Large" OnClick="@(() => OpenOrderDetail(context.Id))">Chỉnh sửa</MudButton>
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Rounded.DeleteForever" Color="Color.Primary" IconColor="Color.Error" Size="Size.Large">Xóa</MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <FooterContent>
+                    <MudTd colspan="5">Tổng tiền: @(orderDetails.Sum(x => x.Price * x.Quantity))</MudTd>
+                </FooterContent>
+            </MudTable>
+
+        </DialogContent>
+        <DialogActions>
+            <MudGrid>
+                <MudItem xs="2">
+                    <MudButton OnClick="@(() => OpenOrderDetail( orderId: OrderId))">Thêm</MudButton>
+                </MudItem>
+                <MudItem xs="5">
+                </MudItem>
+                <MudItem xs="2">
+                    <MudButton OnClick="Cancel">Cancel</MudButton>
+                </MudItem>
+                <MudItem xs="2">
+                    <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+                </MudItem>
+            </MudGrid>
+        </DialogActions>
+    </MudDialog>
+
+
+    @code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public int OrderId { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        order = await mediator.Send(new FindOrderQuery(OrderId));
+        if (order.PickUp != null)
+        {
+            Switch = true;
+            date = order.PickUp?.Date;
+            time = order.PickUp?.TimeOfDay;
+        }
+        OrderStatus = (int) order.OrderStatus; 
+        orderDetails = await mediator.Send(new GetOrderDetailListQuery(OrderId));
+        customer = await mediator.Send(new FindCustomerQuery(order.CustomerId));
+    }
+
+    private List<OrderDetailViewModel> orderDetails = new();
+    private string? TextValue { get; set; }
+    private string? Name { get; set; }
+    private int OrderStatus { get; set; }
+    public bool Switch { get; set; } = false;
+
+    DateTime? date = DateTime.Today;
+    TimeSpan? time = new TimeSpan();
+
+    Domain.Entities.Customer customer;
+    Domain.Entities.Order order;
+
+    bool success;
+    string[] errors = { };
+    MudForm? form;
+
+    private async Task<IEnumerable<Domain.Entities.Customer>> SearchName(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return Array.Empty<Domain.Entities.Customer>();
+        }
+        return await mediator.Send(new GetCustomersFilteredNameQuery(value));
+    }
+
+    private async Task OpenOrderDetail(int orderDetailId = 0, int orderId = 0)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var parameters = new DialogParameters { ["OrderDetailId"] = orderDetailId, ["OrderId"] = orderId };
+        string title;
+        if(orderId == 0)
+        {
+            title = "Sửa chi tiết toa hàng";
+        } else
+        {
+            title = "Thêm chi tiết toa hàng";
+        }
+        var dialog = DialogService.Show<OrderDetailDialog>(title, parameters, options); ;
+        var dialogResult = await dialog.Result;
+        if (!dialogResult.Canceled)
+        {
+            orderDetails = await mediator.Send(new GetOrderDetailListQuery(OrderId));
+        }
+    }
+
+    async Task Submit()
+    {
+        var result = await mediator.Send(new UpdateOrderCommand(order.Id, customer.Id, orderDetails.Sum(x => x.Price * x.Quantity), DateTime.Now, (OrderStatus)OrderStatus, date != null && time != null ? date + time : null ));
+        MudDialog.Close(DialogResult.Ok(Name));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}
